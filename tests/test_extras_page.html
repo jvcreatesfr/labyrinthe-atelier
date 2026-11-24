@@ -1,0 +1,24 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>test extras</title></head><body>
+<pre id="res">en cours</pre>
+<iframe id="f" src="../index.html" style="width:900px;height:600px"></iframe>
+<script>
+const res = document.getElementById('res'), out = [];
+const f = document.getElementById('f');
+f.onload = async () => {
+  const w = f.contentWindow;
+  try {
+    await new Promise(r => setTimeout(r, 4000));
+    const cible = [12, 14, 38, 60, 75];
+    for (const n of cible) {
+      await w.chargerNiveau(n);
+      const d = w.donneesNiveau(n);
+      for (let i = 0; i < 90; i++) w.physique(1 / 60);
+      const types = {}; w.E.pieges.forEach(p => { types[p.constructor.name] = (types[p.constructor.name] || 0) + 1; });
+      out.push('niv ' + n + ' plan=' + d.plan + ' pieges=' + JSON.stringify(types) + ' portes=' + d.portes.length + ' inter=' + d.interrupteurs.length + ' tonneaux=' + d.pieges.filter(t => t.type === 'tonneaux').length + ' mort=' + w.E.termine);
+    }
+    const err = w.document.getElementById('erreur').textContent;
+    out.push('ERREURS PAGE: ' + (err || 'aucune'));
+  } catch (e) { out.push('EXCEPTION: ' + e.message + ' ' + (e.stack || '').slice(0, 400)); }
+  res.textContent = 'FINI\n' + out.join('\n');
+};
+</script></body></html>

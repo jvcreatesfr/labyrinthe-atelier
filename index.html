@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Labyrinthe – Atelier</title>
+<style>
+  :root{--or:#ffd84d;--bleu:#8fe3ff}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b0d12;font-family:system-ui,Segoe UI,Arial,sans-serif;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none}
+  #c{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .txt{text-shadow:0 0 4px #000,0 0 4px #000,1px 1px 3px #000}
+  #hud{position:fixed;left:18px;top:8px;pointer-events:none}
+  #hud div{line-height:1.2}
+  #titre{font-size:28px;font-weight:700}
+  #hudPieces{font-size:22px;color:var(--or)} #hudCles{font-size:22px;color:#fff3a0} #hudBoucliers{font-size:22px;color:var(--bleu)}
+  #btns{position:fixed;right:16px;top:14px;display:flex;flex-direction:column;gap:10px}
+  button{font:inherit;color:#fff;background:#243a5e;border:2px solid #4c6ea8;border-radius:12px;padding:12px 22px;font-size:20px;cursor:pointer}
+  button:hover:not(:disabled){background:#2f4b7c} button:active:not(:disabled){transform:scale(.97)}
+  button:disabled{opacity:.45;cursor:default}
+  #btns button{min-width:150px}
+  #astuce{position:fixed;left:200px;right:20px;bottom:26px;text-align:center;font-size:24px;opacity:0;transition:opacity .6s;pointer-events:none}
+  #joy{position:fixed;left:34px;bottom:34px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.10);border:2px solid rgba(255,255,255,.30);touch-action:none}
+  #knob{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;background:rgba(255,255,255,.35);border:2px solid rgba(255,255,255,.6)}
+  .ecran{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,8,14,.55)}
+  .panneau{background:rgba(18,26,42,.96);border:2px solid #3b5688;border-radius:18px;padding:26px 34px;max-width:min(780px,94vw);max-height:90vh;overflow:auto;text-align:center}
+  .panneau h2{margin:0 0 14px;font-size:34px}
+  .detail{color:var(--or);font-size:22px;margin-bottom:16px}
+  .rangee{display:flex;align-items:center;gap:16px;margin:10px 0;text-align:left}
+  .rangee .nom{font-size:21px;font-weight:600} .rangee .desc{font-size:15px;color:#b8c4dc}
+  .rangee .info{flex:1} .rangee button{min-width:130px;padding:9px 14px;font-size:18px}
+  .grille{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin:14px 0}
+  .grille button{padding:10px 0;font-size:18px;min-width:0}
+  .actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+  #chargement{display:flex;background:#0b0d12;font-size:26px}
+  #erreur{position:fixed;left:10px;right:10px;bottom:10px;background:#7a1f1f;border:2px solid #ff7b7b;border-radius:10px;padding:10px 14px;font-size:15px;display:none;white-space:pre-wrap;z-index:99}
+  #petit{position:fixed;left:8px;top:calc(50% + 40px);font-size:12px;opacity:.55;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud" class="txt"><div id="titre"></div><div id="hudPieces"></div><div id="hudCles"></div><div id="hudBoucliers"></div></div>
+<div id="btns"><button id="bCam">Caméra (C)</button><button id="bBoutique">Boutique</button><button id="bNiveaux">Niveaux</button><button id="bPlein">Plein écran</button></div>
+<div id="astuce" class="txt"></div>
+<div id="joy"><div id="knob"></div></div>
+<div id="petit" class="txt">ZQSD / flèches : bouger &nbsp;·&nbsp; C : caméra</div>
+
+<div id="menu" class="ecran"><div class="panneau"><h2 id="menuMsg"></h2><div id="menuDetail" class="detail"></div>
+  <div class="actions"><button id="menuPrincipal"></button><button id="menuBoutique">Boutique</button><button id="menuNiveaux">Niveaux</button></div></div></div>
+
+<div id="boutique" class="ecran"><div class="panneau"><h2>Boutique</h2><div id="boutiqueInfo" class="detail"></div><div id="boutiqueListe"></div>
+  <div class="actions"><button id="boutiqueFermer">Fermer</button></div></div></div>
+
+<div id="coffre" class="ecran"><div class="panneau"><h2 id="coffreTitre"></h2><div id="coffreRecompense" class="detail" style="font-size:30px"></div>
+  <div class="actions"><button id="coffreOk">Continuer</button></div></div></div>
+
+<div id="niveaux" class="ecran"><div class="panneau"><h2>Choisir un niveau</h2><div class="detail" id="niveauxInfo" style="font-size:16px"></div>
+  <div id="niveauxGrille" class="grille"></div>
+  <div class="actions"><button id="niveauxFermer">Fermer</button><button id="resetSauv" style="background:#5e2424;border-color:#a84c4c">Effacer la sauvegarde</button></div></div></div>
+
+<div id="chargement" class="ecran"><div id="chargementTxt">Chargement…</div></div>
+<div id="erreur"></div>
+
+<script>
+window.addEventListener('error', function (e) { var d = document.getElementById('erreur'); d.style.display = 'block'; d.textContent += (e.message || e) + (e.filename ? '  (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : '') + '\n'; });
+window.addEventListener('unhandledrejection', function (e) { var d = document.getElementById('erreur'); d.style.display = 'block'; d.textContent += 'Erreur : ' + (e.reason && e.reason.message || e.reason) + '\n'; });
+</script>
+<script src="lib/three.min.js"></script>
+<script src="lib/GLTFLoader.js"></script>
+<script src="data/levels.js"></script>
+<script src="data/perso.js"></script>
+<script src="data/pieges.js"></script>
+<script src="js/game_core.js"></script>
+<script src="js/game_generateur.js"></script>
+<script src="js/game_niveaux.js"></script>
+<script src="js/game_pieges.js"></script>
+<script src="js/game_extras.js"></script>
+<script src="js/game_main.js"></script>
+</body>
+</html>
